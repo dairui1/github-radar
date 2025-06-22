@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  githubUrl   String   @unique
+  owner       String
+  repo        String
+  isActive    Boolean  @default(true)
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  reports   Report[]
+  rawData   RawData[]
+  
+  @@map("projects")
+}
+
+model Report {
+  id             String      @id @default(cuid())
+  projectId      String
+  title          String
+  content        String
+  summary        String
+  reportType     ReportType  @default(DAILY)
+  reportDate     DateTime
+  issuesCount    Int         @default(0)
+  discussionsCount Int       @default(0)
+  createdAt      DateTime    @default(now())
+  
+  project        Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("reports")
+}
+
+model RawData {
+  id        String    @id @default(cuid())
+  projectId String
+  type      DataType
+  githubId  Int
+  title     String
+  body      String
+  author    String
+  url       String
+  createdAt DateTime
+  updatedAt DateTime?
+  syncedAt  DateTime  @default(now())
+  
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, githubId, type])
+  @@map("raw_data")
+}
+
+enum ReportType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum DataType {
+  ISSUE
+  DISCUSSION
+  PULL_REQUEST
+}
