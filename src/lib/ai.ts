@@ -1,7 +1,53 @@
 import { openai } from '@ai-sdk/openai'
+import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
+import { LanguageModel } from 'ai'
+
+export type AIProvider = 'openai' | 'openrouter' | 'anthropic' | 'google'
+export type AIModel = string
+
+export interface AIConfig {
+  provider: AIProvider
+  model: AIModel
+  apiKey?: string
+  baseURL?: string
+}
 
 export class AIService {
+  private config: AIConfig
+
+  constructor(config?: AIConfig) {
+    this.config = config || {
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      apiKey: process.env.OPENAI_API_KEY
+    }
+  }
+
+  private getModel(): LanguageModel {
+    switch (this.config.provider) {
+      case 'openai':
+        return openai(this.config.model)
+      
+      case 'openrouter':
+        const openrouter = createOpenAI({
+          apiKey: this.config.apiKey || process.env.OPENROUTER_API_KEY,
+          baseURL: this.config.baseURL || 'https://openrouter.ai/api/v1',
+        })
+        return openrouter(this.config.model)
+      
+      case 'anthropic':
+        // Will be implemented when @ai-sdk/anthropic is added
+        throw new Error('Anthropic provider not yet implemented')
+      
+      case 'google':
+        // Will be implemented when @ai-sdk/google is added
+        throw new Error('Google provider not yet implemented')
+      
+      default:
+        throw new Error(`Unsupported AI provider: ${this.config.provider}`)
+    }
+  }
   async generateReport(
     projectName: string,
     data: {
@@ -15,7 +61,7 @@ export class AIService {
     
     try {
       const { text } = await generateText({
-        model: openai('gpt-4o-mini'),
+        model: this.getModel(),
         prompt,
         maxTokens: 2000,
         temperature: 0.7,
@@ -88,7 +134,7 @@ Format the report in clear markdown with proper headings and bullet points. Keep
   private async generateSummary(content: string): Promise<string> {
     try {
       const { text } = await generateText({
-        model: openai('gpt-4o-mini'),
+        model: this.getModel(),
         prompt: `Summarize the following GitHub project report in 2-3 sentences, highlighting the most important points:
 
 ${content}

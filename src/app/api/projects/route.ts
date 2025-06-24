@@ -30,7 +30,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, githubUrl, description } = body
+    const { name, githubUrl, description, aiProvider = 'openai', aiModel = 'gpt-4o-mini' } = body
 
     if (!name || !githubUrl) {
       return NextResponse.json(
@@ -78,6 +78,8 @@ export async function POST(request: NextRequest) {
         githubUrl,
         owner,
         repo,
+        aiProvider,
+        aiModel,
       },
     })
 

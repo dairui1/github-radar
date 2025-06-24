@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { AIService } from '@/lib/ai'
+import { AIService, AIProvider } from '@/lib/ai'
+import { getEnvironmentApiKey } from '@/lib/ai-config'
 import { format, subDays, subWeeks, subMonths } from 'date-fns'
-
-const ai = new AIService()
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,6 +88,13 @@ export async function POST(request: NextRequest) {
         author: item.author,
         createdAt: item.createdAt,
       }))
+
+    // Create AI service with project-specific configuration
+    const ai = new AIService({
+      provider: project.aiProvider as AIProvider,
+      model: project.aiModel,
+      apiKey: getEnvironmentApiKey(project.aiProvider as AIProvider),
+    })
 
     // Generate AI report
     const aiReport = await ai.generateReport(

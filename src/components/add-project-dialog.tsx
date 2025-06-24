@@ -13,6 +13,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { AI_PROVIDERS, isProviderAvailable } from '@/lib/ai-config'
+import { AIProvider } from '@/lib/ai'
 import { toast } from 'sonner'
 
 interface AddProjectDialogProps {
@@ -38,6 +47,8 @@ export function AddProjectDialog({ open, onClose, onProjectAdded }: AddProjectDi
     name: '',
     githubUrl: '',
     description: '',
+    aiProvider: 'openai',
+    aiModel: 'gpt-4o-mini',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,7 +74,7 @@ export function AddProjectDialog({ open, onClose, onProjectAdded }: AddProjectDi
         const newProject = await response.json()
         onProjectAdded(newProject)
         toast.success('Project added successfully')
-        setFormData({ name: '', githubUrl: '', description: '' })
+        setFormData({ name: '', githubUrl: '', description: '', aiProvider: 'openai', aiModel: 'gpt-4o-mini' })
       } else {
         const error = await response.json()
         toast.error(error.error || 'Failed to add project')
@@ -91,9 +102,18 @@ export function AddProjectDialog({ open, onClose, onProjectAdded }: AddProjectDi
 
   const handleClose = () => {
     if (!loading) {
-      setFormData({ name: '', githubUrl: '', description: '' })
+      setFormData({ name: '', githubUrl: '', description: '', aiProvider: 'openai', aiModel: 'gpt-4o-mini' })
       onClose()
     }
+  }
+
+  const handleProviderChange = (provider: string) => {
+    const providerConfig = AI_PROVIDERS[provider as keyof typeof AI_PROVIDERS]
+    setFormData(prev => ({
+      ...prev,
+      aiProvider: provider,
+      aiModel: providerConfig.defaultModel,
+    }))
   }
 
   return (
@@ -135,6 +155,46 @@ export function AddProjectDialog({ open, onClose, onProjectAdded }: AddProjectDi
               onChange={(e) => handleInputChange('description', e.target.value)}
               disabled={loading}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="aiProvider">AI Provider</Label>
+            <Select
+              value={formData.aiProvider}
+              onValueChange={handleProviderChange}
+              disabled={loading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select AI provider" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(AI_PROVIDERS)
+                  .filter(([key]) => isProviderAvailable(key as AIProvider))
+                  .map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
+                      {config.label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="aiModel">AI Model</Label>
+            <Select
+              value={formData.aiModel}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, aiModel: value }))}
+              disabled={loading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select AI model" />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_PROVIDERS[formData.aiProvider as keyof typeof AI_PROVIDERS]?.models.map((model) => (
+                  <SelectItem key={model.value} value={model.value}>
+                    {model.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </form>
         <DialogFooter>

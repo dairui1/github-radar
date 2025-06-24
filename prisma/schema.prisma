@@ -19,6 +19,8 @@ model Project {
   repo        String
   isActive    Boolean  @default(true)
   lastSyncAt  DateTime?
+  aiProvider  String   @default("openai")
+  aiModel     String   @default("gpt-4o-mini")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
