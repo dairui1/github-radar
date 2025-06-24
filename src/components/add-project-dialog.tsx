@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -50,6 +50,43 @@ export function AddProjectDialog({ open, onClose, onProjectAdded }: AddProjectDi
     aiProvider: 'openai',
     aiModel: 'gpt-4o-mini',
   })
+  const [customModels, setCustomModels] = useState<Record<string, string[]>>({})
+
+  useEffect(() => {
+    if (open) {
+      fetchCustomModels()
+    }
+  }, [open])
+
+  const fetchCustomModels = async () => {
+    try {
+      const response = await fetch('/api/settings')
+      const data = await response.json()
+      
+      const modelsMap: Record<string, string[]> = {}
+      
+      // Extract custom models from settings
+      const customModelKeys = {
+        openai: 'OPENAI_CUSTOM_MODELS',
+        openrouter: 'OPENROUTER_CUSTOM_MODELS',
+      }
+      
+      Object.entries(customModelKeys).forEach(([provider, key]) => {
+        const setting = data.find((s: { key: string; value: string }) => s.key === key)
+        if (setting && setting.value) {
+          try {
+            modelsMap[provider] = JSON.parse(setting.value)
+          } catch {
+            modelsMap[provider] = []
+          }
+        }
+      })
+      
+      setCustomModels(modelsMap)
+    } catch (error) {
+      console.error('Error fetching custom models:', error)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,6 +230,18 @@ export function AddProjectDialog({ open, onClose, onProjectAdded }: AddProjectDi
                     {model.label}
                   </SelectItem>
                 ))}
+                {customModels[formData.aiProvider]?.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                      Custom Models
+                    </div>
+                    {customModels[formData.aiProvider].map((model) => (
+                      <SelectItem key={`custom-${model}`} value={model}>
+                        {model} (Custom)
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>

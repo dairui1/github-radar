@@ -1,17 +1,26 @@
 import { Octokit } from '@octokit/rest'
+import { getGithubToken } from './settings'
 
 export class GitHubService {
-  private octokit: Octokit
+  private octokit: Octokit | null = null
 
-  constructor() {
-    this.octokit = new Octokit({
-      auth: process.env.GITHUB_TOKEN,
-    })
+  private async getOctokit() {
+    if (!this.octokit) {
+      const token = await getGithubToken()
+      if (!token) {
+        throw new Error('GitHub token not configured. Please configure it in Settings.')
+      }
+      this.octokit = new Octokit({
+        auth: token,
+      })
+    }
+    return this.octokit
   }
 
   async getRepository(owner: string, repo: string) {
     try {
-      const { data } = await this.octokit.rest.repos.get({
+      const octokit = await this.getOctokit()
+      const { data } = await octokit.rest.repos.get({
         owner,
         repo,
       })
@@ -24,7 +33,8 @@ export class GitHubService {
 
   async getIssues(owner: string, repo: string, since?: string) {
     try {
-      const { data } = await this.octokit.rest.issues.listForRepo({
+      const octokit = await this.getOctokit()
+      const { data } = await octokit.rest.issues.listForRepo({
         owner,
         repo,
         state: 'all',
@@ -69,7 +79,8 @@ export class GitHubService {
         }
       `
 
-      const response = await this.octokit.graphql(query, {
+      const octokit = await this.getOctokit()
+      const response = await octokit.graphql(query, {
         owner,
         repo,
       })
@@ -95,7 +106,8 @@ export class GitHubService {
 
   async getPullRequests(owner: string, repo: string, since?: string) {
     try {
-      const { data } = await this.octokit.rest.pulls.list({
+      const octokit = await this.getOctokit()
+      const { data } = await octokit.rest.pulls.list({
         owner,
         repo,
         state: 'all',

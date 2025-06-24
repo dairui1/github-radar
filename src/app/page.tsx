@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Github, Calendar, Activity } from 'lucide-react'
+import { Plus, Github, Calendar, Activity, Settings } from 'lucide-react'
 import { AddProjectDialog } from '@/components/add-project-dialog'
 import { ProjectCard } from '@/components/project-card'
 import { RecentReports } from '@/components/recent-reports'
+import { useRouter } from 'next/navigation'
 
 interface Project {
   id: string
@@ -22,6 +23,7 @@ interface Project {
 }
 
 export default function HomePage() {
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -82,10 +84,16 @@ export default function HomePage() {
             Monitor and summarize GitHub project activities with AI
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Project
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push('/settings')}>
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Project
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

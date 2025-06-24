@@ -2,6 +2,7 @@ import { openai } from '@ai-sdk/openai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
 import { LanguageModel } from 'ai'
+import { getApiKey } from './settings'
 
 export type AIProvider = 'openai' | 'openrouter' | 'anthropic' | 'google'
 export type AIModel = string
@@ -20,18 +21,24 @@ export class AIService {
     this.config = config || {
       provider: 'openai',
       model: 'gpt-4o-mini',
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: undefined
     }
   }
 
-  private getModel(): LanguageModel {
+  private async getModel(): Promise<LanguageModel> {
+    const apiKey = this.config.apiKey || await getApiKey(this.config.provider)
+    
+    if (!apiKey) {
+      throw new Error(`No API key found for provider: ${this.config.provider}. Please configure it in Settings.`)
+    }
+    
     switch (this.config.provider) {
       case 'openai':
         return openai(this.config.model)
       
       case 'openrouter':
         const openrouter = createOpenAI({
-          apiKey: this.config.apiKey || process.env.OPENROUTER_API_KEY,
+          apiKey: apiKey,
           baseURL: this.config.baseURL || 'https://openrouter.ai/api/v1',
         })
         return openrouter(this.config.model)
@@ -61,7 +68,7 @@ export class AIService {
     
     try {
       const { text } = await generateText({
-        model: this.getModel(),
+        model: await this.getModel(),
         prompt,
         maxTokens: 2000,
         temperature: 0.7,
@@ -134,7 +141,7 @@ Format the report in clear markdown with proper headings and bullet points. Keep
   private async generateSummary(content: string): Promise<string> {
     try {
       const { text } = await generateText({
-        model: this.getModel(),
+        model: await this.getModel(),
         prompt: `Summarize the following GitHub project report in 2-3 sentences, highlighting the most important points:
 
 ${content}
