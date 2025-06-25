@@ -5,30 +5,39 @@ An intelligent GitHub project monitoring system that automatically tracks issues
 ## ✨ Features
 
 - **🔍 Multi-Repository Monitoring**: Track multiple GitHub repositories simultaneously
-- **🤖 AI-Powered Reports**: Automated daily/weekly/monthly reports using OpenAI GPT
+- **🤖 Multi-Provider AI Support**: Generate reports using OpenAI, Claude (via OpenRouter), Llama, Mistral, and more
 - **📱 Mobile-First Design**: Responsive web interface optimized for mobile devices
 - **⚡ Real-time Sync**: Manual and automatic synchronization with GitHub
 - **📊 Analytics Dashboard**: Project statistics and monitoring insights
 - **🔄 Automated Scheduling**: Configurable cron jobs for data collection
+- **🛠️ Per-Project Configuration**: Different AI models/providers for each monitored project
+- **🔐 Secure Settings Storage**: Encrypted API keys stored in database
+- **🎨 Settings UI**: User-friendly interface for managing API keys and configuration
 - **🐳 Docker Ready**: Easy deployment with Docker and Docker Compose
 
 ## 🛠 Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 15 (App Router + Turbopack)
 - **Database**: SQLite with Prisma ORM
-- **UI**: Tailwind CSS + shadcn/ui
-- **AI**: Vercel AI SDK + OpenAI
+- **UI**: Tailwind CSS v4 + shadcn/ui
+- **AI**: Vercel AI SDK with multiple providers
+  - OpenAI (GPT-4, GPT-3.5)
+  - OpenRouter (Claude, Llama, Mistral, and more)
+  - Support for custom OpenAI-compatible endpoints
 - **GitHub API**: Octokit.js
+- **Forms**: React Hook Form + Zod validation
 - **Deployment**: Docker + Docker Compose
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18+ and pnpm (or npm)
 - Docker and Docker Compose (for deployment)
 - GitHub Personal Access Token
-- OpenAI API Key
+- At least one AI provider API key:
+  - OpenAI API Key (for GPT models)
+  - OpenRouter API Key (for Claude, Llama, Mistral, etc.)
 
 ### Environment Setup
 
@@ -40,6 +49,8 @@ cd github-radar-app
 
 2. Install dependencies:
 ```bash
+pnpm install
+# or
 npm install
 ```
 
@@ -52,10 +63,13 @@ cp .env.example .env
 ```env
 DATABASE_URL="file:./dev.db"
 GITHUB_TOKEN="your_github_token_here"
-OPENAI_API_KEY="your_openai_api_key_here"
+OPENAI_API_KEY="your_openai_api_key_here"           # Optional if using OpenRouter
+OPENROUTER_API_KEY="your_openrouter_key_here"       # Optional if using OpenAI
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 CRON_SECRET="your_secret_key_here"
 ```
+
+> **Note**: You need at least one AI provider API key. You can configure additional providers later through the Settings page.
 
 5. Set up the database:
 ```bash
@@ -65,10 +79,19 @@ npx prisma db push
 
 6. Start the development server:
 ```bash
+pnpm dev
+# or
 npm run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) to see the application.
+
+### First Time Setup
+
+1. **Configure AI Providers**: Navigate to Settings page (`/settings`) to configure your API keys
+2. **Add Your First Project**: Click "Add Project" and enter a GitHub repository URL
+3. **Sync Data**: Click the sync button to fetch the latest data from GitHub
+4. **Generate Report**: Click "Generate Report" to create your first AI-powered summary
 
 ## 🐳 Production Deployment
 
@@ -98,12 +121,22 @@ docker-compose --profile with-scheduler up -d
 
 ## 📚 Usage Guide
 
+### Managing AI Providers
+
+1. Navigate to **Settings** (`/settings`)
+2. Configure your AI provider API keys:
+   - **OpenAI**: For GPT-4 and GPT-3.5 models
+   - **OpenRouter**: For Claude, Llama, Mistral, and more
+3. Set default provider and model for new projects
+4. (Optional) Add custom models or configure base URLs for OpenAI-compatible providers
+
 ### Adding a Project
 
 1. Click "Add Project" on the dashboard
 2. Enter the GitHub repository URL (e.g., `https://github.com/owner/repo`)
 3. Provide a project name and optional description
-4. Click "Add Project"
+4. Select AI provider and model (or use defaults)
+5. Click "Add Project"
 
 ### Syncing Data
 
@@ -112,19 +145,37 @@ docker-compose --profile with-scheduler up -d
 
 ### Generating Reports
 
-- **Manual**: Click "Generate Report" on any project
-- **Automatic**: Reports are auto-generated when new data is synced
+- **Manual**: Click "Generate Report" and select report type (daily/weekly/monthly)
+- **Automatic**: Set up cron jobs for scheduled report generation
+- **Per-Project AI**: Each project can use different AI providers/models
 
 ### API Endpoints
 
 The application provides several API endpoints:
 
-- `GET /api/projects` - List all projects
+#### Projects
+- `GET /api/projects` - List all projects with report counts
 - `POST /api/projects` - Create a new project
-- `POST /api/sync/{projectId}` - Sync project data
+- `PUT /api/projects/{id}` - Update project (activate/deactivate)
+- `DELETE /api/projects/{id}` - Delete project and related data
+
+#### Reports
+- `GET /api/reports` - List all reports
+- `GET /api/reports/{id}` - Get specific report
 - `POST /api/reports/generate` - Generate AI report
-- `GET /api/reports` - List reports
-- `POST /api/cron/sync` - Scheduled sync endpoint
+
+#### Synchronization
+- `POST /api/sync/{projectId}` - Sync GitHub data for a project
+- `POST /api/cron/sync` - Scheduled sync endpoint (protected)
+
+#### Settings
+- `GET /api/settings` - Get all settings (keys masked)
+- `POST /api/settings` - Create/update setting
+- `DELETE /api/settings?key={key}` - Delete setting
+
+#### Utilities
+- `GET /api/health` - Health check endpoint
+- `POST /api/openrouter/models` - Get available OpenRouter models
 
 ## 🔧 Configuration
 
@@ -136,11 +187,23 @@ The application provides several API endpoints:
    - `public_repo` (for public repositories)
    - `read:discussion` (for discussions)
 
-### OpenAI API Key
+### AI Provider Setup
 
+#### OpenAI
 1. Visit [OpenAI API Keys](https://platform.openai.com/api-keys)
 2. Create a new secret key
-3. Add it to your environment variables
+3. Add it to Settings page or environment variables
+
+#### OpenRouter
+1. Visit [OpenRouter](https://openrouter.ai/)
+2. Sign up and get your API key
+3. Add it to Settings page or environment variables
+4. Access models like Claude 3.5, Llama 3, Mistral, and more
+
+#### Custom Providers
+- Support for Azure OpenAI, LocalAI, or any OpenAI-compatible API
+- Configure base URL in Settings page
+- Use custom model names as needed
 
 ### Cron Scheduling
 
@@ -150,16 +213,29 @@ The application supports automatic synchronization via cron jobs. Configure the 
 
 ```
 ┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
-│   Mobile Web UI     │────│   Next.js App       │────│   GitHub API        │
-│   (React/Tailwind)  │    │   (API Routes)       │    │   (Data Source)     │
+│   Mobile Web UI     │────│   Next.js 15 App    │────│   GitHub API        │
+│   (React/Tailwind)  │    │   (App Router)       │    │   (Octokit)         │
 └─────────────────────┘    └──────────────────────┘    └─────────────────────┘
                                       │                            
                                       ▼                            
                              ┌──────────────────────┐    ┌─────────────────────┐
-                             │   SQLite Database    │    │   OpenAI API        │
-                             │   (Prisma ORM)       │    │   (Report Generation)│
-                             └──────────────────────┘    └─────────────────────┘
+                             │   SQLite Database    │    │   AI Providers      │
+                             │   (Prisma ORM)       │    │ - OpenAI            │
+                             │ - Projects           │    │ - OpenRouter        │
+                             │ - Reports            │    │ - Custom Endpoints  │
+                             │ - RawData            │    └─────────────────────┘
+                             │ - Settings           │
+                             └──────────────────────┘
 ```
+
+### Key Components
+
+- **Frontend**: Next.js 15 with App Router, React Server Components, and Tailwind CSS v4
+- **API Layer**: RESTful API routes with type-safe request/response handling
+- **Database**: SQLite with Prisma ORM for data persistence
+- **AI Service**: Abstracted AI provider interface supporting multiple models
+- **GitHub Integration**: Octokit for fetching issues, PRs, and discussions
+- **Settings Service**: Secure configuration management with encryption support
 
 ## 🤝 Contributing
 
@@ -187,7 +263,9 @@ If you encounter any issues or have questions:
 - [Vercel AI SDK](https://sdk.vercel.ai/) for AI integration
 - [shadcn/ui](https://ui.shadcn.com/) for beautiful UI components
 - [Prisma](https://prisma.io) for database management
-- [OpenAI](https://openai.com) for AI-powered report generation
+- [OpenAI](https://openai.com) for GPT models
+- [OpenRouter](https://openrouter.ai/) for multi-model AI access
+- [Octokit](https://github.com/octokit/octokit.js) for GitHub API integration
 
 ---
 
