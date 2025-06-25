@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Github, Calendar, Activity, Settings } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Plus, Github, Settings, ChevronRight } from 'lucide-react'
 import { AddProjectDialog } from '@/components/add-project-dialog'
-import { ProjectCard } from '@/components/project-card'
-import { RecentReports } from '@/components/recent-reports'
+import { ActivityFeed } from '@/components/activity-feed'
+import { QuickInsights } from '@/components/quick-insights'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface Project {
   id: string
@@ -51,15 +52,6 @@ export default function HomePage() {
     setShowAddDialog(false)
   }
 
-  const handleProjectUpdated = (updatedProject: Project) => {
-    setProjects(prev => 
-      prev.map(p => p.id === updatedProject.id ? updatedProject : p)
-    )
-  }
-
-  const handleProjectDeleted = (projectId: string) => {
-    setProjects(prev => prev.filter(p => p.id !== projectId))
-  }
 
   if (loading) {
     return (
@@ -72,7 +64,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
+    <div className="container mx-auto p-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -81,7 +73,7 @@ export default function HomePage() {
             GitHub Radar
           </h1>
           <p className="text-muted-foreground mt-1">
-            Monitor and summarize GitHub project activities with AI
+            Your GitHub projects activity dashboard
           </p>
         </div>
         <div className="flex gap-2">
@@ -96,84 +88,108 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-            <Github className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{projects.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {projects.filter(p => p.isActive).length} active
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Reports</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {projects.reduce((sum, p) => sum + p._count.reports, 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Across all projects
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Monitoring</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {projects.filter(p => p.isActive).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Projects being tracked
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Quick Insights */}
+      <QuickInsights />
 
-      {/* Projects Grid */}
-      {projects.length > 0 ? (
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Your Projects</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onUpdated={handleProjectUpdated}
-                onDeleted={handleProjectDeleted}
-              />
-            ))}
-          </div>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Activity Feed - Takes 2 columns on large screens */}
+        <div className="lg:col-span-2">
+          <ActivityFeed />
         </div>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome to GitHub Radar</CardTitle>
-            <CardDescription>
-              Start by adding your first GitHub project to monitor
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Your First Project
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Recent Reports */}
-      <RecentReports />
+        {/* Sidebar - Projects and Quick Actions */}
+        <div className="space-y-6">
+          {/* Projects Overview */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Projects</CardTitle>
+              <Link href="/projects">
+                <Button variant="ghost" size="sm">
+                  View all
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {projects.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    No projects yet
+                  </p>
+                  <Button 
+                    onClick={() => setShowAddDialog(true)}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Project
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {projects.slice(0, 5).map((project) => (
+                    <Link
+                      key={project.id}
+                      href={`/projects/${project.id}`}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{project.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {project._count.reports} reports
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    </Link>
+                  ))}
+                  {projects.length > 5 && (
+                    <Link href="/projects">
+                      <Button variant="ghost" size="sm" className="w-full mt-2">
+                        View all {projects.length} projects
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => router.push('/reports')}
+              >
+                <ChevronRight className="h-4 w-4 mr-2" />
+                View All Reports
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => router.push('/projects')}
+              >
+                <ChevronRight className="h-4 w-4 mr-2" />
+                Manage Projects
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => setShowAddDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Project
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {/* Add Project Dialog */}
       <AddProjectDialog
