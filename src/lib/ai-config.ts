@@ -20,6 +20,15 @@ export const AI_PROVIDERS: Record<AIProvider, AIProviderConfig> = {
     ],
     defaultModel: 'gpt-4o-mini',
   },
+  deepseek: {
+    name: 'deepseek',
+    label: 'DeepSeek',
+    models: [
+      { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+      { value: 'deepseek-coder', label: 'DeepSeek Coder' },
+    ],
+    defaultModel: 'deepseek-chat',
+  },
   openrouter: {
     name: 'openrouter',
     label: 'OpenRouter',
@@ -63,6 +72,7 @@ export function getProviderConfig(provider: AIProvider): AIProviderConfig {
 export function isProviderAvailable(provider: AIProvider): boolean {
   switch (provider) {
     case 'openai':
+    case 'deepseek':
     case 'openrouter':
       return true
     case 'anthropic':
@@ -77,6 +87,8 @@ export function getEnvironmentApiKey(provider: AIProvider): string | undefined {
   switch (provider) {
     case 'openai':
       return process.env.OPENAI_API_KEY
+    case 'deepseek':
+      return process.env.DEEPSEEK_API_KEY
     case 'openrouter':
       return process.env.OPENROUTER_API_KEY
     case 'anthropic':
