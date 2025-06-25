@@ -56,3 +56,18 @@ export async function getGithubToken(): Promise<string | undefined> {
     return process.env.GITHUB_TOKEN
   }
 }
+
+export async function getBaseUrl(provider: AIProvider): Promise<string | undefined> {
+  try {
+    if (provider !== 'openai') return undefined
+    
+    const setting = await prisma.settings.findUnique({
+      where: { key: 'OPENAI_BASE_URL' },
+    })
+    
+    return setting?.value || undefined
+  } catch (error) {
+    console.error(`Error fetching base URL for ${provider}:`, error)
+    return undefined
+  }
+}
