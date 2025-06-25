@@ -30,7 +30,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, githubUrl, description, aiProvider = 'openai', aiModel = 'gpt-4o-mini' } = body
+    const { name, githubUrl, description } = body
 
     if (!name || !githubUrl) {
       return NextResponse.json(
@@ -70,6 +70,17 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
+
+    // Get default AI configuration from settings
+    const defaultProviderSetting = await prisma.settings.findUnique({
+      where: { key: 'DEFAULT_AI_PROVIDER' },
+    })
+    const defaultModelSetting = await prisma.settings.findUnique({
+      where: { key: 'DEFAULT_AI_MODEL' },
+    })
+    
+    const aiProvider = defaultProviderSetting?.value || 'openai'
+    const aiModel = defaultModelSetting?.value || 'gpt-4o-mini'
 
     const project = await prisma.project.create({
       data: {

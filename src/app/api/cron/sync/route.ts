@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { GitHubService } from '@/lib/github'
-import { AIService } from '@/lib/ai'
+import { AIService, AIProvider } from '@/lib/ai'
+import { getEnvironmentApiKey } from '@/lib/ai-config'
 import { format, subDays } from 'date-fns'
 
 const github = new GitHubService()
-const ai = new AIService()
 
 export async function POST(request: NextRequest) {
   try {
@@ -178,8 +178,8 @@ export async function POST(request: NextRequest) {
             if (recentData.length > 0) {
               // Group data by type
               const issuesData = recentData
-                .filter(item => item.type === 'ISSUE')
-                .map(item => ({
+                .filter((item) => item.type === 'ISSUE')
+                .map((item) => ({
                   title: item.title,
                   body: item.body,
                   author: item.author,
@@ -187,8 +187,8 @@ export async function POST(request: NextRequest) {
                 }))
 
               const discussionsData = recentData
-                .filter(item => item.type === 'DISCUSSION')
-                .map(item => ({
+                .filter((item) => item.type === 'DISCUSSION')
+                .map((item) => ({
                   title: item.title,
                   body: item.body,
                   author: item.author,
@@ -196,15 +196,21 @@ export async function POST(request: NextRequest) {
                 }))
 
               const pullRequestsData = recentData
-                .filter(item => item.type === 'PULL_REQUEST')
-                .map(item => ({
+                .filter((item) => item.type === 'PULL_REQUEST')
+                .map((item) => ({
                   title: item.title,
                   body: item.body,
                   author: item.author,
                   createdAt: item.createdAt,
                 }))
 
-              // Generate AI report
+              // Generate AI report using project-specific AI configuration
+              const ai = new AIService({
+                provider: project.aiProvider as AIProvider,
+                model: project.aiModel,
+                apiKey: getEnvironmentApiKey(project.aiProvider as AIProvider),
+              })
+              
               const aiReport = await ai.generateReport(
                 project.name,
                 { 
