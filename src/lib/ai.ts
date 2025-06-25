@@ -1,11 +1,16 @@
 import { openai } from '@ai-sdk/openai'
 import { createOpenAI } from '@ai-sdk/openai'
+import { anthropic } from '@ai-sdk/anthropic'
+import { google } from '@ai-sdk/google'
+import { createAzure } from '@ai-sdk/azure'
+import { mistral } from '@ai-sdk/mistral'
+import { cohere } from '@ai-sdk/cohere'
 import { generateText } from 'ai'
 import { LanguageModel } from 'ai'
 import { getApiKey, getBaseUrl } from './settings'
 import { ReportConfig } from './report-config'
 
-export type AIProvider = 'openai' | 'openrouter' | 'anthropic' | 'google'
+export type AIProvider = 'openai' | 'openrouter' | 'anthropic' | 'google' | 'azure' | 'mistral' | 'cohere'
 export type AIModel = string
 
 export interface AIConfig {
@@ -53,12 +58,27 @@ export class AIService {
         return openrouter(this.config.model)
       
       case 'anthropic':
-        // Will be implemented when @ai-sdk/anthropic is added
-        throw new Error('Anthropic provider not yet implemented')
+        return anthropic(this.config.model)
       
       case 'google':
-        // Will be implemented when @ai-sdk/google is added
-        throw new Error('Google provider not yet implemented')
+        return google(this.config.model)
+      
+      case 'azure':
+        const azureBaseURL = this.config.baseURL || await getBaseUrl(this.config.provider)
+        if (!azureBaseURL) {
+          throw new Error('Azure requires a base URL. Please configure it in Settings.')
+        }
+        const azure = createAzure({
+          apiKey: apiKey,
+          baseURL: azureBaseURL,
+        })
+        return azure(this.config.model)
+      
+      case 'mistral':
+        return mistral(this.config.model)
+      
+      case 'cohere':
+        return cohere(this.config.model)
       
       default:
         throw new Error(`Unsupported AI provider: ${this.config.provider}`)

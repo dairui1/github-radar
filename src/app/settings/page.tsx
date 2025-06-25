@@ -46,6 +46,37 @@ const PROVIDERS: ProviderConfig[] = [
     models: [], // Will be loaded dynamically
     customModelsKey: 'OPENROUTER_CUSTOM_MODELS',
   },
+  {
+    provider: 'anthropic',
+    apiKey: 'ANTHROPIC_API_KEY',
+    models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+    customModelsKey: 'ANTHROPIC_CUSTOM_MODELS',
+  },
+  {
+    provider: 'google',
+    apiKey: 'GOOGLE_GENERATIVE_AI_API_KEY',
+    models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'],
+    customModelsKey: 'GOOGLE_CUSTOM_MODELS',
+  },
+  {
+    provider: 'azure',
+    apiKey: 'AZURE_API_KEY',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4', 'gpt-35-turbo'],
+    customModelsKey: 'AZURE_CUSTOM_MODELS',
+    baseUrlKey: 'AZURE_BASE_URL',
+  },
+  {
+    provider: 'mistral',
+    apiKey: 'MISTRAL_API_KEY',
+    models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest', 'open-mistral-7b', 'open-mixtral-8x7b', 'open-mixtral-8x22b'],
+    customModelsKey: 'MISTRAL_CUSTOM_MODELS',
+  },
+  {
+    provider: 'cohere',
+    apiKey: 'COHERE_API_KEY',
+    models: ['command-r-plus', 'command-r', 'command', 'command-light'],
+    customModelsKey: 'COHERE_CUSTOM_MODELS',
+  },
 ]
 
 export default function SettingsPage() {

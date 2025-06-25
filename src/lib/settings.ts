@@ -8,7 +8,10 @@ export async function getApiKey(provider: AIProvider): Promise<string | undefine
       openai: 'OPENAI_API_KEY',
       openrouter: 'OPENROUTER_API_KEY',
       anthropic: 'ANTHROPIC_API_KEY',
-      google: 'GOOGLE_API_KEY',
+      google: 'GOOGLE_GENERATIVE_AI_API_KEY',
+      azure: 'AZURE_API_KEY',
+      mistral: 'MISTRAL_API_KEY',
+      cohere: 'COHERE_API_KEY',
     }
     
     const settingKey = keyMap[provider]
@@ -32,7 +35,10 @@ export async function getApiKey(provider: AIProvider): Promise<string | undefine
       openai: 'OPENAI_API_KEY',
       openrouter: 'OPENROUTER_API_KEY',
       anthropic: 'ANTHROPIC_API_KEY',
-      google: 'GOOGLE_API_KEY',
+      google: 'GOOGLE_GENERATIVE_AI_API_KEY',
+      azure: 'AZURE_API_KEY',
+      mistral: 'MISTRAL_API_KEY',
+      cohere: 'COHERE_API_KEY',
     }
     
     const settingKey = keyMap[provider]
@@ -59,10 +65,16 @@ export async function getGithubToken(): Promise<string | undefined> {
 
 export async function getBaseUrl(provider: AIProvider): Promise<string | undefined> {
   try {
-    if (provider !== 'openai') return undefined
+    const keyMap: Record<string, string> = {
+      openai: 'OPENAI_BASE_URL',
+      azure: 'AZURE_BASE_URL',
+    }
+    
+    const settingKey = keyMap[provider]
+    if (!settingKey) return undefined
     
     const setting = await prisma.settings.findUnique({
-      where: { key: 'OPENAI_BASE_URL' },
+      where: { key: settingKey },
     })
     
     return setting?.value || undefined

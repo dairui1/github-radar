@@ -26,6 +26,8 @@ interface AddProjectDialogProps {
     isActive: boolean
     lastSyncAt?: string
     createdAt: string
+    aiProvider: string
+    aiModel: string
     _count: {
       reports: number
     }

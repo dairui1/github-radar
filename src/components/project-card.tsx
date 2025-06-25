@@ -10,7 +10,8 @@ import {
   FileText, 
   Trash2, 
   Power,
-  PowerOff 
+  PowerOff,
+  Edit 
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { EditProjectDialog } from '@/components/edit-project-dialog'
 
 interface Project {
   id: string
@@ -30,6 +32,8 @@ interface Project {
   isActive: boolean
   lastSyncAt?: string
   createdAt: string
+  aiProvider: string
+  aiModel: string
   _count: {
     reports: number
   }
@@ -44,6 +48,7 @@ interface ProjectCardProps {
 export function ProjectCard({ project, onUpdated, onDeleted }: ProjectCardProps) {
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
 
   const handleSync = async () => {
     setSyncing(true)
@@ -187,6 +192,10 @@ export function ProjectCard({ project, onUpdated, onDeleted }: ProjectCardProps)
                 <ExternalLink className="h-4 w-4 mr-2" />
                 View on GitHub
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Project
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSync} disabled={syncing || !project.isActive}>
                 <RotateCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing...' : 'Sync Now'}
@@ -240,6 +249,17 @@ export function ProjectCard({ project, onUpdated, onDeleted }: ProjectCardProps)
           </div>
         </div>
       </CardContent>
+      <EditProjectDialog
+        project={{
+          id: project.id,
+          name: project.name,
+          description: project.description || null,
+          aiProvider: project.aiProvider,
+          aiModel: project.aiModel,
+        }}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+      />
     </Card>
   )
 }

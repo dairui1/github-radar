@@ -5,6 +5,7 @@ export interface AIProviderConfig {
   label: string
   models: { value: string; label: string }[]
   requiresCustomApiKey?: boolean
+  requiresBaseURL?: boolean
   defaultModel: string
 }
 
@@ -38,21 +39,68 @@ export const AI_PROVIDERS: Record<AIProvider, AIProviderConfig> = {
   },
   anthropic: {
     name: 'anthropic',
-    label: 'Anthropic (Coming Soon)',
+    label: 'Anthropic',
     models: [
-      { value: 'claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
-      { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+      { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+      { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
+      { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+      { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
+      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
     ],
-    defaultModel: 'claude-3.5-sonnet',
+    requiresCustomApiKey: true,
+    defaultModel: 'claude-3-5-sonnet-20241022',
   },
   google: {
     name: 'google',
-    label: 'Google (Coming Soon)',
+    label: 'Google',
     models: [
+      { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+      { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+      { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
       { value: 'gemini-pro', label: 'Gemini Pro' },
-      { value: 'gemini-pro-vision', label: 'Gemini Pro Vision' },
     ],
-    defaultModel: 'gemini-pro',
+    requiresCustomApiKey: true,
+    defaultModel: 'gemini-1.5-flash',
+  },
+  azure: {
+    name: 'azure',
+    label: 'Azure OpenAI',
+    models: [
+      { value: 'gpt-4o', label: 'GPT-4o' },
+      { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+      { value: 'gpt-4', label: 'GPT-4' },
+      { value: 'gpt-35-turbo', label: 'GPT-3.5 Turbo' },
+    ],
+    requiresCustomApiKey: true,
+    requiresBaseURL: true,
+    defaultModel: 'gpt-4o-mini',
+  },
+  mistral: {
+    name: 'mistral',
+    label: 'Mistral AI',
+    models: [
+      { value: 'mistral-large-latest', label: 'Mistral Large' },
+      { value: 'mistral-medium-latest', label: 'Mistral Medium' },
+      { value: 'mistral-small-latest', label: 'Mistral Small' },
+      { value: 'codestral-latest', label: 'Codestral' },
+      { value: 'open-mistral-7b', label: 'Mistral 7B' },
+      { value: 'open-mixtral-8x7b', label: 'Mixtral 8x7B' },
+      { value: 'open-mixtral-8x22b', label: 'Mixtral 8x22B' },
+    ],
+    requiresCustomApiKey: true,
+    defaultModel: 'mistral-small-latest',
+  },
+  cohere: {
+    name: 'cohere',
+    label: 'Cohere',
+    models: [
+      { value: 'command-r-plus', label: 'Command R+' },
+      { value: 'command-r', label: 'Command R' },
+      { value: 'command', label: 'Command' },
+      { value: 'command-light', label: 'Command Light' },
+    ],
+    requiresCustomApiKey: true,
+    defaultModel: 'command-r',
   },
 }
 
@@ -61,16 +109,8 @@ export function getProviderConfig(provider: AIProvider): AIProviderConfig {
 }
 
 export function isProviderAvailable(provider: AIProvider): boolean {
-  switch (provider) {
-    case 'openai':
-    case 'openrouter':
-      return true
-    case 'anthropic':
-    case 'google':
-      return false // Will be enabled when implemented
-    default:
-      return false
-  }
+  // All providers are now available
+  return !!provider
 }
 
 export function getEnvironmentApiKey(provider: AIProvider): string | undefined {
@@ -82,7 +122,13 @@ export function getEnvironmentApiKey(provider: AIProvider): string | undefined {
     case 'anthropic':
       return process.env.ANTHROPIC_API_KEY
     case 'google':
-      return process.env.GOOGLE_API_KEY
+      return process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY
+    case 'azure':
+      return process.env.AZURE_API_KEY
+    case 'mistral':
+      return process.env.MISTRAL_API_KEY
+    case 'cohere':
+      return process.env.COHERE_API_KEY
     default:
       return undefined
   }

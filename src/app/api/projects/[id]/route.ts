@@ -47,7 +47,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { name, description, isActive } = body
+    const { name, description, isActive, aiProvider, aiModel } = body
 
     const project = await prisma.project.update({
       where: { id },
@@ -55,6 +55,8 @@ export async function PUT(
         ...(name && { name }),
         ...(description !== undefined && { description }),
         ...(isActive !== undefined && { isActive }),
+        ...(aiProvider && { aiProvider }),
+        ...(aiModel && { aiModel }),
       },
     })
 
