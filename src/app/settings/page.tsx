@@ -7,6 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
 import { Loader2, Save, Trash2, Eye, EyeOff, Plus, X } from 'lucide-react'
 
@@ -22,6 +29,7 @@ interface ProviderConfig {
   apiKey: string
   models: string[]
   customModelsKey: string
+  baseUrlKey?: string
 }
 
 const PROVIDERS: ProviderConfig[] = [
@@ -30,18 +38,12 @@ const PROVIDERS: ProviderConfig[] = [
     apiKey: 'OPENAI_API_KEY',
     models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
     customModelsKey: 'OPENAI_CUSTOM_MODELS',
+    baseUrlKey: 'OPENAI_BASE_URL',
   },
   {
     provider: 'openrouter',
     apiKey: 'OPENROUTER_API_KEY',
-    models: [
-      'claude-3.5-sonnet',
-      'claude-3-opus',
-      'claude-3-haiku',
-      'llama-3.3-70b',
-      'mistral-large',
-      'qwen-2.5-coder-32b',
-    ],
+    models: [], // Will be loaded dynamically
     customModelsKey: 'OPENROUTER_CUSTOM_MODELS',
   },
 ]
@@ -55,9 +57,14 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [customModels, setCustomModels] = useState<Record<string, string[]>>({})
   const [newModelInputs, setNewModelInputs] = useState<Record<string, string>>({})
+  const [defaultProvider, setDefaultProvider] = useState('openai')
+  const [defaultModel, setDefaultModel] = useState('gpt-4o-mini')
+  const [openRouterModels, setOpenRouterModels] = useState<string[]>([])
+  const [loadingModels, setLoadingModels] = useState(false)
 
   useEffect(() => {
     fetchSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchSettings = async () => {
@@ -88,8 +95,21 @@ export default function SettingsPage() {
         })
       })
       
+      // Load default AI configuration
+      if (settingsMap['DEFAULT_AI_PROVIDER']) {
+        setDefaultProvider(settingsMap['DEFAULT_AI_PROVIDER'].value)
+      }
+      if (settingsMap['DEFAULT_AI_MODEL']) {
+        setDefaultModel(settingsMap['DEFAULT_AI_MODEL'].value)
+      }
+      
       setSettings(settingsMap)
       setCustomModels(customModelsMap)
+      
+      // Fetch OpenRouter models if API key exists
+      if (settingsMap['OPENROUTER_API_KEY'] && settingsMap['OPENROUTER_API_KEY'].value && settingsMap['OPENROUTER_API_KEY'].value !== '••••••••') {
+        fetchOpenRouterModels(settingsMap['OPENROUTER_API_KEY'].value)
+      }
     } catch (error) {
       console.error('Error fetching settings:', error)
       toast({
@@ -99,6 +119,28 @@ export default function SettingsPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+  
+  const fetchOpenRouterModels = async (apiKey: string) => {
+    if (!apiKey || apiKey === '••••••••') return
+    
+    setLoadingModels(true)
+    try {
+      const response = await fetch('/api/openrouter/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey }),
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setOpenRouterModels(data.models || [])
+      }
+    } catch (error) {
+      console.error('Error fetching OpenRouter models:', error)
+    } finally {
+      setLoadingModels(false)
     }
   }
 
@@ -169,7 +211,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleProviderSave = (provider: ProviderConfig) => {
+  const handleProviderSave = async (provider: ProviderConfig) => {
     const value = formData[provider.apiKey] || ''
     if (!value) {
       toast({
@@ -179,7 +221,19 @@ export default function SettingsPage() {
       })
       return
     }
-    saveSetting(provider.apiKey, value, true)
+    
+    // Save API key
+    await saveSetting(provider.apiKey, value, true)
+    
+    // Save base URL for OpenAI if provided
+    if (provider.baseUrlKey && formData[provider.baseUrlKey]) {
+      await saveSetting(provider.baseUrlKey, formData[provider.baseUrlKey])
+    }
+    
+    // Fetch OpenRouter models after saving API key
+    if (provider.provider === 'openrouter') {
+      await fetchOpenRouterModels(value)
+    }
   }
 
   const toggleShowKey = (key: string) => {
@@ -315,20 +369,59 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   
+                  {provider.baseUrlKey && (
+                    <div className="space-y-2">
+                      <Label htmlFor={provider.baseUrlKey}>Base URL (Optional)</Label>
+                      <Input
+                        id={provider.baseUrlKey}
+                        placeholder={provider.provider === 'openai' ? 'https://api.openai.com/v1 (default)' : ''}
+                        value={formData[provider.baseUrlKey] || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, [provider.baseUrlKey!]: e.target.value }))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use this to connect to OpenAI-compatible providers (e.g., Azure OpenAI, LocalAI)
+                      </p>
+                    </div>
+                  )}
+                  
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-sm font-medium mb-2">Available Models</h4>
                       <div className="space-y-2">
-                        <div className="text-sm text-muted-foreground">
-                          <p className="font-medium mb-1">Default models:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {provider.models.map(model => (
-                              <span key={model} className="px-2 py-1 bg-secondary rounded-md text-xs">
-                                {model}
-                              </span>
-                            ))}
+                        {provider.provider === 'openrouter' ? (
+                          <div className="text-sm text-muted-foreground">
+                            {loadingModels ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Loading models...</span>
+                              </div>
+                            ) : openRouterModels.length > 0 ? (
+                              <>
+                                <p className="font-medium mb-1">Available models ({openRouterModels.length}):</p>
+                                <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto">
+                                  {openRouterModels.map(model => (
+                                    <span key={model} className="px-2 py-1 bg-secondary rounded-md text-xs">
+                                      {model}
+                                    </span>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-muted-foreground">Save your API key to load available models</p>
+                            )}
                           </div>
-                        </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            <p className="font-medium mb-1">Default models:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {provider.models.map(model => (
+                                <span key={model} className="px-2 py-1 bg-secondary rounded-md text-xs">
+                                  {model}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         
                         {customModels[provider.provider]?.length > 0 && (
                           <div className="text-sm text-muted-foreground">
@@ -467,6 +560,111 @@ export default function SettingsPage() {
                     </a>
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Default AI Configuration</CardTitle>
+              <CardDescription>
+                Configure the default AI provider and model used for all projects
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="default-provider">Default AI Provider</Label>
+                  <Select
+                    value={defaultProvider}
+                    onValueChange={setDefaultProvider}
+                  >
+                    <SelectTrigger id="default-provider">
+                      <SelectValue placeholder="Select default provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVIDERS.map((provider) => (
+                        <SelectItem key={provider.provider} value={provider.provider}>
+                          {provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="default-model">Default AI Model</Label>
+                  <Select
+                    value={defaultModel}
+                    onValueChange={setDefaultModel}
+                  >
+                    <SelectTrigger id="default-model">
+                      <SelectValue placeholder="Select default model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {defaultProvider === 'openrouter' ? (
+                        <>
+                          {openRouterModels.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          {PROVIDERS.find(p => p.provider === defaultProvider)?.models.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {customModels[defaultProvider]?.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                            Custom Models
+                          </div>
+                          {customModels[defaultProvider].map((model) => (
+                            <SelectItem key={`custom-${model}`} value={model}>
+                              {model} (Custom)
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button
+                  onClick={async () => {
+                    setSaving('DEFAULT_AI_CONFIG')
+                    try {
+                      await saveSetting('DEFAULT_AI_PROVIDER', defaultProvider)
+                      await saveSetting('DEFAULT_AI_MODEL', defaultModel)
+                      toast({
+                        title: 'Success',
+                        description: 'Default AI configuration saved successfully',
+                      })
+                    } catch (error) {
+                      console.error('Error saving default AI config:', error)
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to save default AI configuration',
+                        variant: 'destructive',
+                      })
+                    } finally {
+                      setSaving(null)
+                    }
+                  }}
+                  disabled={saving === 'DEFAULT_AI_CONFIG'}
+                >
+                  {saving === 'DEFAULT_AI_CONFIG' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save Default Configuration
+                </Button>
               </div>
             </CardContent>
           </Card>

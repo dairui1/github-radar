@@ -2,7 +2,7 @@ import { openai } from '@ai-sdk/openai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
 import { LanguageModel } from 'ai'
-import { getApiKey } from './settings'
+import { getApiKey, getBaseUrl } from './settings'
 
 export type AIProvider = 'openai' | 'openrouter' | 'anthropic' | 'google'
 export type AIModel = string
@@ -34,6 +34,14 @@ export class AIService {
     
     switch (this.config.provider) {
       case 'openai':
+        const baseURL = this.config.baseURL || await getBaseUrl(this.config.provider)
+        if (baseURL) {
+          const customOpenAI = createOpenAI({
+            apiKey: apiKey,
+            baseURL: baseURL,
+          })
+          return customOpenAI(this.config.model)
+        }
         return openai(this.config.model)
       
       case 'openrouter':
