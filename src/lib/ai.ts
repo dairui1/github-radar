@@ -3,8 +3,9 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
 import { LanguageModel } from 'ai'
 import { getApiKey, getBaseUrl } from './settings'
+import { prisma } from './db'
 
-export type AIProvider = 'openai' | 'openrouter' | 'anthropic' | 'google'
+export type AIProvider = 'openai' | 'openrouter' | 'deepseek' | 'anthropic' | 'google'
 export type AIModel = string
 
 export interface AIConfig {
@@ -44,6 +45,13 @@ export class AIService {
         }
         return openai(this.config.model)
       
+      case 'deepseek':
+        const deepseek = createOpenAI({
+          apiKey: apiKey,
+          baseURL: this.config.baseURL || 'https://api.deepseek.com',
+        })
+        return deepseek(this.config.model)
+      
       case 'openrouter':
         const openrouter = createOpenAI({
           apiKey: apiKey,
@@ -72,7 +80,7 @@ export class AIService {
     },
     reportType: 'DAILY' | 'WEEKLY' | 'MONTHLY' = 'DAILY'
   ) {
-    const prompt = this.buildPrompt(projectName, data, reportType)
+    const prompt = await this.buildPrompt(projectName, data, reportType)
     
     try {
       const { text } = await generateText({
@@ -92,7 +100,7 @@ export class AIService {
     }
   }
 
-  private buildPrompt(
+  private async buildPrompt(
     projectName: string,
     data: {
       issues: Array<{ title: string; body: string; author: string; createdAt: Date }>
@@ -100,30 +108,36 @@ export class AIService {
       pullRequests: Array<{ title: string; body: string; author: string; createdAt: Date }>
     },
     reportType: string
-  ): string {
+  ): Promise<string> {
     const timeframe = reportType.toLowerCase()
     
-    const prompt = `Generate a comprehensive ${timeframe} report for the GitHub project "${projectName}". 
+    // Try to get custom prompt template from settings
+    let promptTemplate: string | null = null
+    try {
+      const setting = await prisma.settings.findUnique({
+        where: { key: 'REPORT_PROMPT_TEMPLATE' },
+      })
+      if (setting?.value) {
+        promptTemplate = setting.value
+      }
+    } catch (error) {
+      console.error('Error fetching report prompt template:', error)
+    }
+    
+    // Use default template if custom not found
+    if (!promptTemplate) {
+      promptTemplate = `Generate a comprehensive {timeframe} report for the GitHub project "{projectName}". 
 
 Please analyze the following data and provide insights:
 
-## Recent Issues (${data.issues.length} items):
-${data.issues.map(issue => `
-- **${issue.title}** by @${issue.author} (${issue.createdAt.toLocaleDateString()})
-  ${issue.body.slice(0, 200)}${issue.body.length > 200 ? '...' : ''}
-`).join('\n')}
+## Recent Issues ({issueCount} items):
+{issues}
 
-## Recent Discussions (${data.discussions.length} items):
-${data.discussions.map(discussion => `
-- **${discussion.title}** by @${discussion.author} (${discussion.createdAt.toLocaleDateString()})
-  ${discussion.body.slice(0, 200)}${discussion.body.length > 200 ? '...' : ''}
-`).join('\n')}
+## Recent Discussions ({discussionCount} items):
+{discussions}
 
-## Recent Pull Requests (${data.pullRequests.length} items):
-${data.pullRequests.map(pr => `
-- **${pr.title}** by @${pr.author} (${pr.createdAt.toLocaleDateString()})
-  ${pr.body.slice(0, 200)}${pr.body.length > 200 ? '...' : ''}
-`).join('\n')}
+## Recent Pull Requests ({prCount} items):
+{pullRequests}
 
 Please provide:
 
@@ -142,19 +156,68 @@ Please provide:
 6. **Action Items**: What might need attention going forward
 
 Format the report in clear markdown with proper headings and bullet points. Keep it concise but informative.`
+    }
+    
+    // Format issues, discussions, and PRs
+    const issuesText = data.issues.map(issue => `
+- **${issue.title}** by @${issue.author} (${issue.createdAt.toLocaleDateString()})
+  ${issue.body.slice(0, 200)}${issue.body.length > 200 ? '...' : ''}
+`).join('\n')
+    
+    const discussionsText = data.discussions.map(discussion => `
+- **${discussion.title}** by @${discussion.author} (${discussion.createdAt.toLocaleDateString()})
+  ${discussion.body.slice(0, 200)}${discussion.body.length > 200 ? '...' : ''}
+`).join('\n')
+    
+    const pullRequestsText = data.pullRequests.map(pr => `
+- **${pr.title}** by @${pr.author} (${pr.createdAt.toLocaleDateString()})
+  ${pr.body.slice(0, 200)}${pr.body.length > 200 ? '...' : ''}
+`).join('\n')
+    
+    // Replace variables in template
+    const prompt = promptTemplate
+      .replace(/{projectName}/g, projectName)
+      .replace(/{timeframe}/g, timeframe)
+      .replace(/{issueCount}/g, String(data.issues.length))
+      .replace(/{issues}/g, issuesText)
+      .replace(/{discussionCount}/g, String(data.discussions.length))
+      .replace(/{discussions}/g, discussionsText)
+      .replace(/{prCount}/g, String(data.pullRequests.length))
+      .replace(/{pullRequests}/g, pullRequestsText)
 
     return prompt
   }
 
   private async generateSummary(content: string): Promise<string> {
     try {
+      // Try to get custom summary prompt template from settings
+      let promptTemplate: string | null = null
+      try {
+        const setting = await prisma.settings.findUnique({
+          where: { key: 'SUMMARY_PROMPT_TEMPLATE' },
+        })
+        if (setting?.value) {
+          promptTemplate = setting.value
+        }
+      } catch (error) {
+        console.error('Error fetching summary prompt template:', error)
+      }
+      
+      // Use default template if custom not found
+      if (!promptTemplate) {
+        promptTemplate = `Summarize the following GitHub project report in 2-3 sentences, highlighting the most important points:
+
+{content}
+
+Summary:`
+      }
+      
+      // Replace variables in template
+      const prompt = promptTemplate.replace(/{content}/g, content)
+      
       const { text } = await generateText({
         model: await this.getModel(),
-        prompt: `Summarize the following GitHub project report in 2-3 sentences, highlighting the most important points:
-
-${content}
-
-Summary:`,
+        prompt,
         maxTokens: 150,
         temperature: 0.5,
       })
