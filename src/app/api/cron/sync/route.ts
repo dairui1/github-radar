@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { GitHubService } from '@/lib/github'
 import { AIService, AIProvider } from '@/lib/ai'
 import { getEnvironmentApiKey } from '@/lib/ai-config'
+import { mergeReportConfig } from '@/lib/report-config'
 import { format, subDays } from 'date-fns'
 
 const github = new GitHubService()
@@ -37,10 +38,12 @@ export async function POST(request: NextRequest) {
         const since = project.lastSyncAt?.toISOString()
 
         // Fetch data from GitHub
-        const [issues, discussions, pullRequests] = await Promise.all([
+        const [issues, discussions, pullRequests, stats, recentActivity] = await Promise.all([
           github.getIssues(project.owner, project.repo, since),
           github.getDiscussions(project.owner, project.repo),
-          github.getPullRequests(project.owner, project.repo, since)
+          github.getPullRequests(project.owner, project.repo, since),
+          github.getRepositoryStats(project.owner, project.repo),
+          github.getRecentActivity(project.owner, project.repo, 7)
         ])
 
         let syncedCount = 0
@@ -150,6 +153,28 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Store repository stats
+        await prisma.projectStats.create({
+          data: {
+            projectId: project.id,
+            stars: stats.stars,
+            forks: stats.forks,
+            watchers: stats.watchers,
+            openIssues: stats.openIssues,
+            size: stats.size,
+            defaultBranch: stats.defaultBranch,
+            language: stats.language,
+            languages: JSON.stringify(stats.languages),
+            contributorsCount: stats.contributorsCount,
+            topContributors: JSON.stringify(stats.topContributors),
+            recentCommitsCount: stats.recentCommitsCount,
+            lastCommitDate: stats.lastCommitDate ? new Date(stats.lastCommitDate) : null,
+            commitsLastWeek: recentActivity.commits,
+            issueEventsLastWeek: recentActivity.issueEvents,
+            uniqueAuthorsLastWeek: recentActivity.uniqueAuthors,
+          }
+        })
+
         // Update project sync time
         await prisma.project.update({
           where: { id: project.id },
@@ -204,6 +229,20 @@ export async function POST(request: NextRequest) {
                   createdAt: item.createdAt,
                 }))
 
+              // Get latest stats for the report
+              const latestStats = await prisma.projectStats.findFirst({
+                where: { projectId: project.id },
+                orderBy: { createdAt: 'desc' },
+              })
+
+              const statsData = latestStats ? {
+                current: {
+                  ...latestStats,
+                  languages: JSON.parse(latestStats.languages),
+                  topContributors: JSON.parse(latestStats.topContributors),
+                }
+              } : undefined
+
               // Generate AI report using project-specific AI configuration
               const ai = new AIService({
                 provider: project.aiProvider as AIProvider,
@@ -211,14 +250,18 @@ export async function POST(request: NextRequest) {
                 apiKey: getEnvironmentApiKey(project.aiProvider as AIProvider),
               })
               
+              const reportConfig = mergeReportConfig(project.reportConfig)
+              
               const aiReport = await ai.generateReport(
                 project.name,
                 { 
                   issues: issuesData, 
                   discussions: discussionsData, 
-                  pullRequests: pullRequestsData 
+                  pullRequests: pullRequestsData,
+                  stats: statsData
                 },
-                'DAILY'
+                'DAILY',
+                { config: reportConfig }
               )
 
               // Save report
