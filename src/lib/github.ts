@@ -128,6 +128,105 @@ export class GitHubService {
     }
   }
 
+  async getRepositoryStats(owner: string, repo: string) {
+    try {
+      const octokit = await this.getOctokit()
+      
+      // Get repository details
+      const { data: repoData } = await octokit.rest.repos.get({
+        owner,
+        repo,
+      })
+      
+      // Get contributors stats
+      const { data: contributors } = await octokit.rest.repos.listContributors({
+        owner,
+        repo,
+        per_page: 100,
+      })
+      
+      // Get recent commits (last 30 days)
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      
+      const { data: commits } = await octokit.rest.repos.listCommits({
+        owner,
+        repo,
+        since: thirtyDaysAgo.toISOString(),
+        per_page: 100,
+      })
+      
+      // Get languages
+      const { data: languages } = await octokit.rest.repos.listLanguages({
+        owner,
+        repo,
+      })
+      
+      return {
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        watchers: repoData.watchers_count,
+        openIssues: repoData.open_issues_count,
+        size: repoData.size,
+        defaultBranch: repoData.default_branch,
+        language: repoData.language,
+        languages,
+        contributorsCount: contributors.length,
+        topContributors: contributors.slice(0, 10).map(c => ({
+          login: c.login,
+          contributions: c.contributions,
+          avatar_url: c.avatar_url,
+        })),
+        recentCommitsCount: commits.length,
+        lastCommitDate: commits[0]?.commit.author?.date || null,
+      }
+    } catch (error) {
+      console.error('Error fetching repository stats:', error)
+      throw new Error('Failed to fetch repository statistics')
+    }
+  }
+
+  async getRecentActivity(owner: string, repo: string, days: number = 7) {
+    try {
+      const octokit = await this.getOctokit()
+      const since = new Date()
+      since.setDate(since.getDate() - days)
+      const sinceStr = since.toISOString()
+      
+      // Get commit activity
+      const { data: commits } = await octokit.rest.repos.listCommits({
+        owner,
+        repo,
+        since: sinceStr,
+        per_page: 100,
+      })
+      
+      // Get issue events
+      const { data: issueEvents } = await octokit.rest.issues.listEventsForRepo({
+        owner,
+        repo,
+        per_page: 100,
+      })
+      
+      const recentIssueEvents = issueEvents.filter(
+        event => new Date(event.created_at) > since
+      )
+      
+      return {
+        commits: commits.length,
+        issueEvents: recentIssueEvents.length,
+        uniqueAuthors: new Set(commits.map(c => c.author?.login).filter(Boolean)).size,
+      }
+    } catch (error) {
+      console.error('Error fetching recent activity:', error)
+      return {
+        commits: 0,
+        issueEvents: 0,
+        uniqueAuthors: 0,
+      }
+    }
+  }
+
   parseGitHubUrl(url: string): { owner: string; repo: string } | null {
     const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/i)
     if (!match) return null

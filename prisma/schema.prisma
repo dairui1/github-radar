@@ -21,28 +21,35 @@ model Project {
   lastSyncAt  DateTime?
   aiProvider  String   @default("openai")
   aiModel     String   @default("gpt-4o-mini")
+  reportConfig String?  // JSON string for report configuration
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   reports   Report[]
   rawData   RawData[]
+  stats     ProjectStats[]
   
   @@map("projects")
 }
 
 model Report {
-  id             String      @id @default(cuid())
-  projectId      String
-  title          String
-  content        String
-  summary        String
-  reportType     ReportType  @default(DAILY)
-  reportDate     DateTime
-  issuesCount    Int         @default(0)
-  discussionsCount Int       @default(0)
-  createdAt      DateTime    @default(now())
+  id               String      @id @default(cuid())
+  projectId        String
+  title            String
+  content          String
+  summary          String
+  reportType       ReportType  @default(DAILY)
+  detailLevel      String      @default("detailed") // "summary" or "detailed"
+  reportDate       DateTime
+  issuesCount      Int         @default(0)
+  discussionsCount Int         @default(0)
+  pullRequestsCount Int        @default(0)
+  metadata         String?     // JSON string for additional metadata
+  highlights       String?     // JSON string for key highlights
+  metrics          String?     // JSON string for computed metrics
+  createdAt        DateTime    @default(now())
   
-  project        Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project          Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
   @@map("reports")
 }
@@ -87,4 +94,29 @@ model Settings {
   updatedAt DateTime @updatedAt
   
   @@map("settings")
+}
+
+model ProjectStats {
+  id                  String   @id @default(cuid())
+  projectId           String
+  stars               Int
+  forks               Int
+  watchers            Int
+  openIssues          Int
+  size                Int
+  defaultBranch       String
+  language            String?
+  languages           String   // JSON string
+  contributorsCount   Int
+  topContributors     String   // JSON string
+  recentCommitsCount  Int
+  lastCommitDate      DateTime?
+  commitsLastWeek     Int      @default(0)
+  issueEventsLastWeek Int      @default(0)
+  uniqueAuthorsLastWeek Int    @default(0)
+  createdAt           DateTime @default(now())
+  
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("project_stats")
 }
